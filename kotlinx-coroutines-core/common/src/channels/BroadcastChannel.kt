@@ -70,6 +70,6 @@ public fun <E> BroadcastChannel(capacity: Int): BroadcastChannel<E> =
         0 -> throw IllegalArgumentException("Unsupported 0 capacity for BroadcastChannel")
         UNLIMITED -> throw IllegalArgumentException("Unsupported UNLIMITED capacity for BroadcastChannel")
         CONFLATED -> ConflatedBroadcastChannel()
-        BUFFERED -> ArrayBroadcastChannel(CHANNEL_DEFAULT_CAPACITY)
-        else -> ArrayBroadcastChannel(capacity)
+        BUFFERED -> BufferedBroadcastChannel(CHANNEL_DEFAULT_CAPACITY)
+        else -> BufferedBroadcastChannel(capacity)
     }

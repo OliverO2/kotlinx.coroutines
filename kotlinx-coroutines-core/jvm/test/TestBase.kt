@@ -171,7 +171,7 @@ public actual open class TestBase(private var disableOutCheck: Boolean)  {
         }
         if (!disableOutCheck) {
             previousOut = System.out
-            System.setOut(TestOutputStream)
+//            System.setOut(TestOutputStream)
         }
     }
 

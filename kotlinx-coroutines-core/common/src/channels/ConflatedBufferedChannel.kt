@@ -27,7 +27,7 @@ internal open class ConflatedBufferedChannel<E>(
      */
     private val capacity: Int,
     private val onBufferOverflow: BufferOverflow,
-    onUndeliveredElement: OnUndeliveredElement<E>?
+    onUndeliveredElement: OnUndeliveredElement<E>? = null
 ) : BufferedChannel<E>(capacity = capacity, onUndeliveredElement = onUndeliveredElement) {
     private val lock = reentrantLock()
 
@@ -69,7 +69,7 @@ internal open class ConflatedBufferedChannel<E>(
 
     override fun iterator(): ChannelIterator<E> = ConflatedChannelIterator()
 
-    private inner class ConflatedChannelIterator : BufferedChannelIterator() {
+    internal open inner class ConflatedChannelIterator : BufferedChannelIterator() {
         override suspend fun hasNext(): Boolean {
             lock.lock()
             return super.hasNext()

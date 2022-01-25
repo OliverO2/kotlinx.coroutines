@@ -16,6 +16,7 @@ import org.jetbrains.kotlinx.lincheck.annotations.*
 import org.jetbrains.kotlinx.lincheck.annotations.Operation
 import org.jetbrains.kotlinx.lincheck.paramgen.*
 import org.jetbrains.kotlinx.lincheck.verifier.*
+import org.junit.*
 
 class RendezvousChannelLincheckTest : ChannelLincheckTestBase(
     c = Channel(RENDEZVOUS),
@@ -27,10 +28,20 @@ class Buffered1ChannelLincheckTest : ChannelLincheckTestBase(
     c = Channel(1),
     sequentialSpecification = SequentialBuffered1Channel::class.java
 )
+@Ignore
+class Buffered1BroadcastChannelLincheckTest : ChannelLincheckTestBase(
+    c = ChannelViaBroadcast(BufferedBroadcastChannel(1)),
+    sequentialSpecification = SequentialBuffered1Channel::class.java
+)
 class SequentialBuffered1Channel : SequentialIntChannelBase(1)
 
 class Buffered2ChannelLincheckTest : ChannelLincheckTestBase(
     c = Channel(2),
+    sequentialSpecification = SequentialBuffered2Channel::class.java
+)
+@Ignore
+class Buffered2BroadcastChannelLincheckTest : ChannelLincheckTestBase(
+    c = ChannelViaBroadcast(BufferedBroadcastChannel(2)),
     sequentialSpecification = SequentialBuffered2Channel::class.java
 )
 class SequentialBuffered2Channel : SequentialIntChannelBase(2)
@@ -43,6 +54,11 @@ class SequentialUnlimitedChannel : SequentialIntChannelBase(UNLIMITED)
 
 class ConflatedChannelLincheckTest : ChannelLincheckTestBase(
     c = Channel(CONFLATED),
+    sequentialSpecification = SequentialConflatedChannel::class.java
+)
+@Ignore
+class ConflatedBroadcastChannelLincheckTest : ChannelLincheckTestBase(
+    c = ChannelViaBroadcast(ConflatedBroadcastChannel()),
     sequentialSpecification = SequentialConflatedChannel::class.java
 )
 class SequentialConflatedChannel : SequentialIntChannelBase(CONFLATED)

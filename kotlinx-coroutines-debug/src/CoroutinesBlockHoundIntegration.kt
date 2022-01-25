@@ -127,7 +127,7 @@ public class CoroutinesBlockHoundIntegration : BlockHoundIntegration {
     }
 
     /**
-     * Allows blocking inside [kotlinx.coroutines.channels.ArrayBroadcastChannel].
+     * Allows blocking inside [kotlinx.coroutines.channels.BufferedBroadcastChannel].
      */
     private fun BlockHound.Builder.allowBlockingCallsInBroadcastChannel() {
         for (method in listOf("offerInternal", "offerSelectInternal", "updateHead")) {

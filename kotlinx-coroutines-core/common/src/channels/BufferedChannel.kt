@@ -9,6 +9,7 @@ import kotlinx.coroutines.internal.*
 import kotlinx.coroutines.selects.*
 import kotlinx.coroutines.selects.TrySelectDetailedResult.*
 import kotlin.coroutines.*
+import kotlin.js.*
 import kotlin.jvm.*
 import kotlin.math.*
 import kotlin.native.concurrent.*
@@ -106,6 +107,18 @@ internal open class BufferedChannel<E>(
         return closed(sendException(getCause()))
     }
 
+    private class SenderBroadcast(val cont: CancellableContinuation<Unit>) : Waiter
+
+    internal suspend fun sendBroadcast(element: E): Unit = suspendCancellableCoroutineReusable { cont ->
+        sendImpl(
+            element = element,
+            waiter = SenderBroadcast(cont),
+            onRendezvousOrBuffered = { cont.resume(Unit) },
+            onSuspend = { segm, i -> cont.prepareSenderForSuspension(segm, i) },
+            onClosed = { cont.resume(Unit) }
+        )
+    }
+
     override suspend fun send(element: E): Unit = sendImpl( // <-- this is an inline function
         element = element,
         // Do not create continuation until it is required,
@@ -184,6 +197,7 @@ internal open class BufferedChannel<E>(
      * potential [send] invocation, and the buffer does not cover this cell
      * in case of buffered channel.
      */
+    @JsName("shouldSendSuspend0")
     private fun shouldSendSuspend(curSendersAndCloseStatus: Long): Boolean {
         if (curSendersAndCloseStatus.isClosedForSend0) return false
         return !bufferOrRendezvousSend(curSendersAndCloseStatus.counter)
@@ -194,7 +208,7 @@ internal open class BufferedChannel<E>(
      * Checks whether a [send] invocation is bound to suspend if it is called
      * with the current counter and closing status values. See [shouldSendSuspend].
      */
-    protected fun shouldSendSuspend(): Boolean = shouldSendSuspend(sendersAndCloseStatus.value)
+    internal fun shouldSendSuspend(): Boolean = shouldSendSuspend(sendersAndCloseStatus.value)
 
 
     /**
@@ -795,6 +809,16 @@ internal open class BufferedChannel<E>(
                 }
             }
         }
+        this is SenderBroadcast -> {
+            cont.tryResume(Unit).let {
+                if (it !== null) {
+                    cont.completeResume(it)
+                    true
+                } else {
+                    false
+                }
+            }
+        }
         else -> error("Unexpected waiter: $this")
     }
 
@@ -962,6 +986,8 @@ internal open class BufferedChannel<E>(
      */
     private val closeCause = atomic<Any?>(NO_CLOSE_CAUSE)
 
+    protected val closeCause2 get() = closeCause.value as Throwable?
+
     private fun getCause() = closeCause.value.let { if (it is Throwable?) it else error("WTF: $it")}
 
     private fun receiveException(cause: Throwable?) =
@@ -1082,7 +1108,7 @@ internal open class BufferedChannel<E>(
     final override fun cancel() { cancelImpl(null) }
     final override fun cancel(cause: CancellationException?) { cancelImpl(cause) }
 
-    protected open fun cancelImpl(cause: Throwable?): Boolean {
+    internal open fun cancelImpl(cause: Throwable?): Boolean {
         val cause = cause ?: CancellationException("Channel was cancelled")
         val wasClosed = closeImpl(cause, true)
         removeRemainingBufferedElements()
@@ -1116,15 +1142,15 @@ internal open class BufferedChannel<E>(
                             segm.onCancellation(i)
                             break
                         }
-                        state is WaiterEB -> {
+                        state is Waiter -> {
                             if (segm.casState(i, state, CHANNEL_CLOSED)) {
-                                state.waiter.closeSender()
+                                state.closeSender()
                                 break
                             }
                         }
-                        state is CancellableContinuation<*> || state is SelectInstance<*>  -> {
+                        state is WaiterEB -> {
                             if (segm.casState(i, state, CHANNEL_CLOSED)) {
-                                state.closeSender()
+                                state.waiter.closeSender()
                                 break
                             }
                         }
@@ -1174,6 +1200,10 @@ internal open class BufferedChannel<E>(
     private fun Any.closeWaiter(receiver: Boolean): Boolean {
         val cause = getCause()
         return when (this) {
+            is SenderBroadcast -> {
+                this.cont.resume(Unit)
+                true
+            }
             is CancellableContinuation<*> -> {
                 val exception = if (receiver) receiveException(cause) else sendException(cause)
                 this.tryResumeWithException(exception)?.also { this.completeResume(it) }.let { it !== null }
@@ -1510,6 +1540,7 @@ internal open class BufferedChannel<E>(
                     is CancellableContinuation<*> -> "cont"
                     is SelectInstance<*> -> "select"
                     is ReceiveCatching<*> -> "receiveCatching"
+                    is SenderBroadcast -> "send(broadcast)"
                     else -> w.toString()
                 }
                 val eString = e.toString()

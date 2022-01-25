@@ -70,7 +70,7 @@ class ChannelSendReceiveStressTest(
         }
         val senders = List(nSenders) { senderIndex ->
             launch(pool + CoroutineName("sender$senderIndex")) {
-                when (senderIndex % 2) {
+                when (senderIndex % 1) {
                     0 -> doSend(senderIndex)
                     1 -> doSendSelect(senderIndex)
                 }

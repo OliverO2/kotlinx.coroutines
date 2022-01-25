@@ -26,10 +26,10 @@ class ConflatedBroadcastChannelNotifyStressTest : TestBase() {
         println("--- ConflatedBroadcastChannelNotifyStressTest")
         val senders = List(nSenders) { senderId ->
             launch(Dispatchers.Default + CoroutineName("Sender$senderId")) {
-                repeat(nEvents) { i ->
-                    if (i % nSenders == senderId) {
+                repeat(nEvents + 1) { i ->
+                    if (i % nSenders == senderId || i == nEvents) {
                         broadcast.trySend(i)
-                        sentTotal.incrementAndGet()
+                        if (i != nEvents) sentTotal.incrementAndGet()
                         yield()
                     }
                 }
@@ -62,7 +62,6 @@ class ConflatedBroadcastChannelNotifyStressTest : TestBase() {
         try {
             withTimeout(timeLimit) {
                 senders.forEach { it.join() }
-                broadcast.trySend(nEvents) // last event to signal receivers termination
                 receivers.forEach { it.join() }
             }
         } catch (e: CancellationException) {
